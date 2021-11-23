@@ -1,25 +1,20 @@
 import app from './http'
-import Home from '../share/pages/Home'
-import { renderToString } from 'react-dom/server'
-import React from 'react'
+import renderer from './renderer'
+import createStore from './createStore'
+import routes from '../share/routes'
+import { matchRoutes } from 'react-router-config'
 
-app.get('/', (req, res) => {
-  let content = renderToString(<Home />)
+app.get('*', (req, res) => {
+  const store = createStore()
+  // 1.请求地址
+  // 2. 获取路由配置信息
+  // 3. 根据请求地址匹配出要渲染的组件的路由对象信息
+  const promise = matchRoutes(routes, req.path).map(({ route }) => {
+    // 如何才能知道数据舒服么时候 获取完成
+    if (route.loadData) return route.loadData(store)
+  })
 
-  res.send(
-    `
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="UTF-8" />
-        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>React SSR</title>
-      </head>
-      <body>
-        <div id="root">${content}</div>
-      </body>
-      </html>
-    `
-  )
+  Promise.all(promise).then(() => {
+    res.send(renderer(req, store))
+  })
 })
